@@ -15,6 +15,7 @@ const HotelDashboard = () => {
   const [showToCalendar, setShowToCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(1);
   const [calendarYear, setCalendarYear] = useState(2025);
+  const [scrollPosition, setScrollPosition] = useState(0); // New state to track scroll position
   const [visibleColumns, setVisibleColumns] = useState({
     date: true,
     day: true,
@@ -210,6 +211,7 @@ const HotelDashboard = () => {
   
   // Generate mock data for daily view
   const generateDailyData = () => {
+    console.log("Generating daily data with room type:", roomType);
     let filteredRooms = 20;
     if (roomType !== 'all') {
       filteredRooms = 4; // 4 rooms per type
@@ -370,6 +372,7 @@ const HotelDashboard = () => {
   
   // Generate mock data for weekly view with date range handling
   const generateWeeklyData = () => {
+    console.log("Generating weekly data with room type:", roomType);
     const startDate = parseDate(dateFrom);
     const endDate = parseDate(dateTo);
     
@@ -554,6 +557,7 @@ const HotelDashboard = () => {
 
   // Generate mock data for monthly view with date range handling
   const generateMonthlyData = () => {
+    console.log("Generating monthly data with room type:", roomType);
     // Parse date range
     const startDate = parseDate(dateFrom);
     const endDate = parseDate(dateTo);
@@ -806,13 +810,30 @@ const HotelDashboard = () => {
     // Data will only be loaded when user clicks "Run Report"
   }, []);
 
-  // Add a new useEffect to handle viewType changes
+  // Add a new useEffect to handle viewType changes with scroll position preservation
   useEffect(() => {
     if (data.length > 0) {
-      // We only update when viewType changes and data already exists
+      // Save current scroll position before changing the view
+      const resultsContainer = document.querySelector('.results-container');
+      if (resultsContainer) {
+        const currentPosition = resultsContainer.scrollTop;
+        console.log(`Saving scroll position: ${currentPosition} for view type: ${viewType}`);
+        setScrollPosition(currentPosition);
+      }
+      
+      // Update data when viewType changes
       const newData = getData();
       setData(newData);
       setSummary(calculateSummary(newData));
+      
+      // Restore scroll position after render
+      setTimeout(() => {
+        const container = document.querySelector('.results-container');
+        if (container) {
+          console.log(`Restoring scroll position: ${scrollPosition} for view type: ${viewType}`);
+          container.scrollTop = scrollPosition;
+        }
+      }, 0);
     }
   }, [viewType]);
   
@@ -864,8 +885,9 @@ const HotelDashboard = () => {
   // Add effect to update data when filters change
   useEffect(() => {
     if (data.length > 0 && reportRun) {
-      console.log("Filter changed - includeClosedRooms:", includeClosedRooms);
+      console.log("Filter changed - roomType:", roomType, "includeClosedRooms:", includeClosedRooms, "will update data now");
       const newData = getData();
+      console.log(`Generated new data with ${newData.length} rows for roomType: ${roomType}`);
       setData(newData);
       setSummary(calculateSummary(newData));
     }
@@ -883,6 +905,14 @@ const HotelDashboard = () => {
   const handleClosedRoomsChange = () => {
     console.log("Toggling includeClosedRooms from", includeClosedRooms, "to", !includeClosedRooms);
     setIncludeClosedRooms(!includeClosedRooms);
+  };
+
+  // Modify the room type change handler to log changes
+  const handleRoomTypeChange = (e) => {
+    const newRoomType = e.target.value;
+    console.log("Room type changing from", roomType, "to", newRoomType);
+    setRoomType(newRoomType);
+    // Removing the direct data update as it conflicts with the useEffect
   };
 
   return (
@@ -1125,7 +1155,7 @@ const HotelDashboard = () => {
                   <select 
                     className="border rounded px-3 py-2 h-10"
                     value={roomType}
-                    onChange={(e) => setRoomType(e.target.value)}
+                    onChange={handleRoomTypeChange}
                   >
                     <option value="all">All Rooms (20)</option>
                     <option value="standard">Standard (4)</option>
@@ -1334,173 +1364,209 @@ const HotelDashboard = () => {
       {reportRun && (
         <div className="px-6 py-4">
           <div className="flex justify-between items-center mt-4">
-            <h2 className="text-xl font-semibold">Results</h2>
+            {/* Removing the "Results" heading as requested */}
           </div>
           {data.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    {visibleColumns.date && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        {viewType === 'daily' ? 'Date' : 'Period'}
-                      </th>
-                    )}
-                    {viewType === 'daily' && visibleColumns.day && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        Day
-                      </th>
-                    )}
-                    {visibleColumns.availableRooms && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        Available Rooms
-                      </th>
-                    )}
-                    {visibleColumns.soldRooms && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        Occupied Rooms
-                      </th>
-                    )}
-                    {visibleColumns.guests && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        Guests
-                      </th>
-                    )}
-                    {includeClosedRooms && visibleColumns.unavailableRooms && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        Unavailable Rooms
-                      </th>
-                    )}
-                    {visibleColumns.occupancyPercentage && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        Occupancy %
-                      </th>
-                    )}
-                    {visibleColumns.revPAR && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        RevPAR
-                      </th>
-                    )}
-                    {visibleColumns.adr && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        ADR
-                      </th>
-                    )}
-                    {visibleColumns.revenue && (
-                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
-                        Revenue
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((item, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+            <div className="relative">
+              {/* Fixed position first column overlay - FIXING OVERLAY ISSUE */}
+              {visibleColumns.date && (
+                <div className="absolute top-0 left-0 h-full z-20 pointer-events-none">
+                  <table className="w-full border-collapse border-spacing-0 pointer-events-auto">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className={`text-left py-2 px-4 border-b border-gray-300 bg-gray-100 sticky left-0 shadow-[2px_0_5px_rgba(0,0,0,0.1)] ${viewType === 'daily' ? 'w-40' : 'w-60'}`}>
+                          {viewType === 'daily' ? 'Date' : 'Period'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.map((item, index) => (
+                        <tr key={`fixed-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className={`py-2 px-4 border-b border-gray-200 sticky left-0 shadow-[2px_0_5px_rgba(0,0,0,0.1)] ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${viewType === 'daily' ? 'w-40' : 'w-60'}`}>
+                            <div className={viewType !== 'daily' ? 'whitespace-nowrap' : ''}>
+                              {viewType === 'daily' ? item.date : item.period}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-gray-100 font-semibold">
+                        <td className={`py-2 px-4 border-b border-gray-300 sticky left-0 bg-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.1)] ${viewType === 'daily' ? 'w-40' : 'w-60'}`}>Summary</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              
+              {/* Main scrollable table */}
+              <div className="overflow-x-auto results-container border border-gray-200 rounded-lg">
+                <table className="w-full border-collapse min-w-full table-fixed">
+                  <thead>
+                    <tr className="bg-gray-100">
                       {visibleColumns.date && (
-                        <td className="py-2 px-4 border-b border-gray-200">
-                          {viewType === 'daily' ? item.date : item.period}
+                        <th className={`opacity-0 text-left py-2 px-4 border-b border-gray-300 ${viewType === 'daily' ? 'w-40' : 'w-60'}`}>
+                          {viewType === 'daily' ? 'Date' : 'Period'}
+                        </th>
+                      )}
+                      {viewType === 'daily' && visibleColumns.day && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          Day
+                        </th>
+                      )}
+                      {visibleColumns.availableRooms && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          Available Rooms
+                        </th>
+                      )}
+                      {visibleColumns.soldRooms && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          Occupied Rooms
+                        </th>
+                      )}
+                      {visibleColumns.guests && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          Guests
+                        </th>
+                      )}
+                      {includeClosedRooms && visibleColumns.unavailableRooms && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          Unavailable Rooms
+                        </th>
+                      )}
+                      {visibleColumns.occupancyPercentage && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          Occupancy %
+                        </th>
+                      )}
+                      {visibleColumns.revPAR && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          RevPAR
+                        </th>
+                      )}
+                      {visibleColumns.adr && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          ADR
+                        </th>
+                      )}
+                      {visibleColumns.revenue && (
+                        <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                          Revenue
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map((item, index) => (
+                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        {visibleColumns.date && (
+                          <td className={`opacity-0 py-2 px-4 border-b border-gray-200 ${viewType === 'daily' ? 'w-40' : 'w-60'}`}>
+                            <div className={viewType !== 'daily' ? 'whitespace-nowrap' : ''}>
+                              {viewType === 'daily' ? item.date : item.period}
+                            </div>
+                          </td>
+                        )}
+                        {viewType === 'daily' && visibleColumns.day && (
+                          <td className="py-2 px-4 border-b border-gray-200">{item.day}</td>
+                        )}
+                        {visibleColumns.availableRooms && (
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            {item.availableRooms}
+                          </td>
+                        )}
+                        {visibleColumns.soldRooms && (
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            {item.soldRooms}
+                          </td>
+                        )}
+                        {visibleColumns.guests && (
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            {viewType === 'daily' || viewType === 'weekly' || viewType === 'monthly' ? (
+                              <button 
+                                onClick={() => setSelectedGuestList(viewType === 'daily' ? item.date : item.period)}
+                                className="text-blue-600 hover:underline focus:outline-none"
+                              >
+                                {item.guests}
+                              </button>
+                            ) : (
+                              item.guests
+                            )}
+                          </td>
+                        )}
+                        {includeClosedRooms && visibleColumns.unavailableRooms && (
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <span className={item.unavailableRooms > 0 ? 'text-red-600 font-medium' : ''}>
+                              {item.unavailableRooms || 0}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.occupancyPercentage && (
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <span className={`px-2 py-1 rounded ${
+                              parseFloat(item.occupancyPercentage) <= 25 ? 'bg-red-100 text-red-800' :
+                              parseFloat(item.occupancyPercentage) <= 50 ? 'bg-orange-100 text-orange-800' :
+                              parseFloat(item.occupancyPercentage) <= 80 ? 'bg-yellow-100 text-yellow-800' : 
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {item.occupancyPercentage}%
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.revPAR && (
+                          <td className="py-2 px-4 border-b border-gray-200">${item.revPAR}</td>
+                        )}
+                        {visibleColumns.adr && (
+                          <td className="py-2 px-4 border-b border-gray-200">${item.adr}</td>
+                        )}
+                        {visibleColumns.revenue && (
+                          <td className="py-2 px-4 border-b border-gray-200">${item.revenue}</td>
+                        )}
+                      </tr>
+                    ))}
+                    <tr className="bg-gray-100 font-semibold">
+                      {visibleColumns.date && (
+                        <td className={`opacity-0 py-2 px-4 border-b border-gray-300 ${viewType === 'daily' ? 'w-40' : 'w-60'}`}>
+                          Summary
                         </td>
                       )}
                       {viewType === 'daily' && visibleColumns.day && (
-                        <td className="py-2 px-4 border-b border-gray-200">{item.day}</td>
+                        <td className="py-2 px-4 border-b border-gray-300">-</td>
                       )}
                       {visibleColumns.availableRooms && (
-                        <td className="py-2 px-4 border-b border-gray-200">
-                          {item.availableRooms}
-                        </td>
+                        <td className="py-2 px-4 border-b border-gray-300">{summary.available}</td>
                       )}
                       {visibleColumns.soldRooms && (
-                        <td className="py-2 px-4 border-b border-gray-200">
-                          {item.soldRooms}
-                        </td>
+                        <td className="py-2 px-4 border-b border-gray-300">{summary.occupied}</td>
                       )}
                       {visibleColumns.guests && (
-                        <td className="py-2 px-4 border-b border-gray-200">
-                          {viewType === 'daily' || viewType === 'weekly' || viewType === 'monthly' ? (
-                            <button 
-                              onClick={() => setSelectedGuestList(viewType === 'daily' ? item.date : item.period)}
-                              className="text-blue-600 hover:underline focus:outline-none"
-                            >
-                              {item.guests}
-                            </button>
-                          ) : (
-                            item.guests
-                          )}
-                        </td>
+                        <td className="py-2 px-4 border-b border-gray-300">{summary.guests}</td>
                       )}
                       {includeClosedRooms && visibleColumns.unavailableRooms && (
-                        <td className="py-2 px-4 border-b border-gray-200">
-                          <span className={item.unavailableRooms > 0 ? 'text-red-600 font-medium' : ''}>
-                            {item.unavailableRooms || 0}
-                          </span>
-                        </td>
+                        <td className="py-2 px-4 border-b border-gray-300">{summary.unavailableRooms || 0}</td>
                       )}
                       {visibleColumns.occupancyPercentage && (
-                        <td className="py-2 px-4 border-b border-gray-200">
+                        <td className="py-2 px-4 border-b border-gray-300">
                           <span className={`px-2 py-1 rounded ${
-                            parseFloat(item.occupancyPercentage) <= 25 ? 'bg-red-100 text-red-800' :
-                            parseFloat(item.occupancyPercentage) <= 50 ? 'bg-orange-100 text-orange-800' :
-                            parseFloat(item.occupancyPercentage) <= 80 ? 'bg-yellow-100 text-yellow-800' : 
+                            parseFloat(summary.occupancyPercentage) <= 25 ? 'bg-red-100 text-red-800' :
+                            parseFloat(summary.occupancyPercentage) <= 50 ? 'bg-orange-100 text-orange-800' :
+                            parseFloat(summary.occupancyPercentage) <= 80 ? 'bg-yellow-100 text-yellow-800' : 
                             'bg-green-100 text-green-800'
                           }`}>
-                            {item.occupancyPercentage}%
+                            {summary.occupancyPercentage}%
                           </span>
                         </td>
                       )}
                       {visibleColumns.revPAR && (
-                        <td className="py-2 px-4 border-b border-gray-200">${item.revPAR}</td>
+                        <td className="py-2 px-4 border-b border-gray-300">${summary.revPAR}</td>
                       )}
                       {visibleColumns.adr && (
-                        <td className="py-2 px-4 border-b border-gray-200">${item.adr}</td>
+                        <td className="py-2 px-4 border-b border-gray-300">${summary.adr}</td>
                       )}
                       {visibleColumns.revenue && (
-                        <td className="py-2 px-4 border-b border-gray-200">${item.revenue}</td>
+                        <td className="py-2 px-4 border-b border-gray-300">${summary.revenue}</td>
                       )}
                     </tr>
-                  ))}
-                  <tr className="bg-gray-100 font-semibold">
-                    {visibleColumns.date && (
-                      <td className="py-2 px-4 border-b border-gray-300">Summary</td>
-                    )}
-                    {viewType === 'daily' && visibleColumns.day && (
-                      <td className="py-2 px-4 border-b border-gray-300">-</td>
-                    )}
-                    {visibleColumns.availableRooms && (
-                      <td className="py-2 px-4 border-b border-gray-300">{summary.available}</td>
-                    )}
-                    {visibleColumns.soldRooms && (
-                      <td className="py-2 px-4 border-b border-gray-300">{summary.occupied}</td>
-                    )}
-                    {visibleColumns.guests && (
-                      <td className="py-2 px-4 border-b border-gray-300">{summary.guests}</td>
-                    )}
-                    {includeClosedRooms && visibleColumns.unavailableRooms && (
-                      <td className="py-2 px-4 border-b border-gray-300">{summary.unavailableRooms || 0}</td>
-                    )}
-                    {visibleColumns.occupancyPercentage && (
-                      <td className="py-2 px-4 border-b border-gray-300">
-                        <span className={`px-2 py-1 rounded ${
-                          parseFloat(summary.occupancyPercentage) <= 25 ? 'bg-red-100 text-red-800' :
-                          parseFloat(summary.occupancyPercentage) <= 50 ? 'bg-orange-100 text-orange-800' :
-                          parseFloat(summary.occupancyPercentage) <= 80 ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {summary.occupancyPercentage}%
-                        </span>
-                      </td>
-                    )}
-                    {visibleColumns.revPAR && (
-                      <td className="py-2 px-4 border-b border-gray-300">${summary.revPAR}</td>
-                    )}
-                    {visibleColumns.adr && (
-                      <td className="py-2 px-4 border-b border-gray-300">${summary.adr}</td>
-                    )}
-                    {visibleColumns.revenue && (
-                      <td className="py-2 px-4 border-b border-gray-300">${summary.revenue}</td>
-                    )}
-                  </tr>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
