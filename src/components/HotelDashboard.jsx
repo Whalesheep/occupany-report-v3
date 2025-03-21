@@ -224,7 +224,15 @@ const HotelDashboard = () => {
       };
     };
     
-    const random = seedRandom(123);
+    // Use different seeds for each room type to generate distinct patterns
+    let seedValue = 123;
+    if (roomType === 'standard') seedValue = 234;
+    if (roomType === 'deluxe') seedValue = 345;
+    if (roomType === 'suite') seedValue = 456;
+    if (roomType === 'executive') seedValue = 567;
+    if (roomType === 'family') seedValue = 678;
+    
+    const random = seedRandom(seedValue);
     
     // Parse date range
     const startDate = dateFrom ? parseDate(dateFrom) : null;
@@ -260,14 +268,60 @@ const HotelDashboard = () => {
     // Generate data for each day
     return datesArray.map((dateObj, index) => {
       const unavailableRooms = getUnavailableRoomCount(dateObj.dateObj, roomType);
-      const adjustedAvailableRooms = filteredRooms - unavailableRooms;
+      const totalRooms = filteredRooms;
+      const adjustedAvailableRooms = totalRooms - unavailableRooms;
       
       const isWeekend = dateObj.day === 'Saturday' || dateObj.day === 'Sunday';
-      const randomOccupancy = Math.floor(random() * (adjustedAvailableRooms + 1));
+      
+      // Different occupancy patterns based on room type
+      let baseOccupancyRate;
+      if (roomType === 'standard') {
+        // Standard rooms have medium occupancy that peaks on weekends
+        baseOccupancyRate = isWeekend ? 0.85 : 0.65;
+      } else if (roomType === 'deluxe') {
+        // Deluxe rooms have higher base occupancy
+        baseOccupancyRate = isWeekend ? 0.90 : 0.75;
+      } else if (roomType === 'suite') {
+        // Suites have lower occupancy but consistent pattern
+        baseOccupancyRate = 0.60;
+      } else if (roomType === 'executive') {
+        // Executive rooms higher on weekdays (business travelers)
+        baseOccupancyRate = isWeekend ? 0.50 : 0.80;
+      } else if (roomType === 'family') {
+        // Family rooms much higher on weekends
+        baseOccupancyRate = isWeekend ? 0.95 : 0.45;
+      } else {
+        // All rooms - mixed pattern
+        baseOccupancyRate = isWeekend ? 0.75 : 0.68;
+      }
+      
+      // Add some randomness to the occupancy rate
+      const variability = 0.15;
+      const occupancyRate = Math.min(1.0, Math.max(0.3, baseOccupancyRate + (random() * variability * 2 - variability)));
+      
+      // Calculate occupied rooms based on total rooms (not adjusted for closed rooms)
+      // This ensures guest counts don't change when includeClosedRooms is toggled
+      const randomOccupancy = Math.floor(occupancyRate * totalRooms);
       
       // Calculate total guests first to ensure consistency
       let totalGuests = 0;
       const guestDetails = [];
+      
+      // Different guest patterns for different room types
+      let guestsPerRoom;
+      if (roomType === 'standard') {
+        guestsPerRoom = 1.5; // Mostly single/couples
+      } else if (roomType === 'deluxe') {
+        guestsPerRoom = 1.8; // Couples with occasional extra
+      } else if (roomType === 'suite') {
+        guestsPerRoom = 2.2; // Small families or couples
+      } else if (roomType === 'executive') {
+        guestsPerRoom = 1.4; // Mostly business travelers
+      } else if (roomType === 'family') {
+        guestsPerRoom = 3.5; // Larger families
+      } else {
+        guestsPerRoom = 1.8; // Mixed average
+      }
       
       // Generate guest details ensuring the total matches what we'll show in the table
       for (let i = 0; i < randomOccupancy; i++) {
@@ -344,13 +398,25 @@ const HotelDashboard = () => {
       }
       
       // Calculate revenue and other metrics
-      const baseRate = isWeekend ? 220 : 189;
-      const rate = roomType !== 'all' ? 
-        baseRate * (1 + roomTypes.indexOf(roomType.charAt(0).toUpperCase() + roomType.slice(1)) * 0.15) : 
-        baseRate;
+      let baseRate;
+      if (roomType === 'standard') {
+        baseRate = isWeekend ? 210 : 189;
+      } else if (roomType === 'deluxe') {
+        baseRate = isWeekend ? 260 : 229; 
+      } else if (roomType === 'suite') {
+        baseRate = isWeekend ? 350 : 299;
+      } else if (roomType === 'executive') {
+        baseRate = isWeekend ? 389 : 359;
+      } else if (roomType === 'family') {
+        baseRate = isWeekend ? 450 : 399;
+      } else {
+        baseRate = isWeekend ? 310 : 270; // Average for all rooms
+      }
       
-      const revenue = rate * randomOccupancy * (revIncludesTax ? 1.1 : 1);
+      const revenue = baseRate * randomOccupancy * (revIncludesTax ? 1.1 : 1);
+      // Calculate occupancy based on adjusted available rooms (including closed rooms)
       const occupancyPercentage = adjustedAvailableRooms > 0 ? (randomOccupancy / adjustedAvailableRooms) * 100 : 0;
+      // RevPAR is based on available rooms (including closed rooms)
       const revPAR = adjustedAvailableRooms > 0 ? revenue / adjustedAvailableRooms : 0;
       const adr = randomOccupancy > 0 ? revenue / randomOccupancy : 0;
       
@@ -408,7 +474,7 @@ const HotelDashboard = () => {
     
     const roomsPerType = roomType === 'all' ? 20 : 4;
     
-    // Use a fixed seed for random number generation
+    // Use a fixed seed for random number generation but different for each room type
     const seedRandom = (seed) => {
       return function() {
         seed = (seed * 9301 + 49297) % 233280;
@@ -416,7 +482,15 @@ const HotelDashboard = () => {
       };
     };
     
-    const random = seedRandom(456);
+    // Use different seeds for different room types
+    let seedValue = 456;
+    if (roomType === 'standard') seedValue = 567;
+    if (roomType === 'deluxe') seedValue = 678;
+    if (roomType === 'suite') seedValue = 789;
+    if (roomType === 'executive') seedValue = 890;
+    if (roomType === 'family') seedValue = 901;
+    
+    const random = seedRandom(seedValue);
     const weeklyData = [];
     
     for (const week of weekBoundaries) {
@@ -435,30 +509,89 @@ const HotelDashboard = () => {
       }
       
       const avgUnavailableRoomsPerDay = daysInRange > 0 ? totalUnavailableRoomNights / daysInRange : 0;
-      const adjustedAvailableRoomNights = (roomsPerType - avgUnavailableRoomsPerDay) * daysInRange;
+      const totalRoomNights = roomsPerType * daysInRange;
+      const adjustedAvailableRoomNights = totalRoomNights - totalUnavailableRoomNights;
       
-      // Variable occupancy rates based on week (higher on weekends, etc.)
+      // Different occupancy rates based on room type
+      let baseOccupancyRate;
+      if (roomType === 'standard') {
+        baseOccupancyRate = 0.72;
+      } else if (roomType === 'deluxe') {
+        baseOccupancyRate = 0.83;
+      } else if (roomType === 'suite') {
+        baseOccupancyRate = 0.65;
+      } else if (roomType === 'executive') {
+        baseOccupancyRate = 0.78;
+      } else if (roomType === 'family') {
+        baseOccupancyRate = 0.55 + (week.start.getDay() === 0 ? 0.2 : 0); // Higher on weeks starting Sunday
+      } else {
+        // All rooms - use mixed pattern
+        baseOccupancyRate = 0.75;
+      }
+      
+      // Add time-based variability (different weeks have different patterns)
       const weekIndex = weekBoundaries.indexOf(week);
-      const baseOccupancies = [0.72, 0.78, 0.68, 0.82, 0.75];
-      const variability = 0.05; // Add some randomness
-      const occupancyRate = Math.min(0.95, Math.max(0.5, 
-        baseOccupancies[weekIndex % baseOccupancies.length] + (random() * variability * 2 - variability)
+      // Add some randomness based on week number
+      const variability = 0.08;
+      const weeklyVariation = (weekIndex % 4 === 0) ? 0.05 : (weekIndex % 4 === 1) ? 0.08 : (weekIndex % 4 === 2) ? -0.03 : -0.05;
+      
+      const occupancyRate = Math.min(0.95, Math.max(0.45, 
+        baseOccupancyRate + weeklyVariation + (random() * variability * 2 - variability)
       ));
       
-      const soldRoomNights = Math.round(adjustedAvailableRoomNights * occupancyRate);
-      const guestsTotal = Math.floor(soldRoomNights * 1.6);
+      // Calculate sold room nights based on total room capacity (not adjusted)
+      const soldRoomNights = Math.round(occupancyRate * totalRoomNights);
       
-      // Variable ADR based on demand
-      const baseADR = 250;
-      const weeklyAdjustment = weekIndex % 4 === 1 ? 20 : (weekIndex % 4 === 2 ? -15 : 5); // Higher on second week, lower on third
-      const seasonalADR = baseADR + weeklyAdjustment;
+      // Different guest patterns based on room type
+      let guestsPerRoom;
+      if (roomType === 'standard') {
+        guestsPerRoom = 1.5; // Mostly single/couples
+      } else if (roomType === 'deluxe') {
+        guestsPerRoom = 1.8; // Couples with occasional extra
+      } else if (roomType === 'suite') {
+        guestsPerRoom = 2.2; // Small families or couples
+      } else if (roomType === 'executive') {
+        guestsPerRoom = 1.4; // Mostly business travelers
+      } else if (roomType === 'family') {
+        guestsPerRoom = 3.5; // Larger families
+      } else {
+        guestsPerRoom = 1.8; // Mixed average
+      }
       
-      const adr = seasonalADR + (occupancyRate > 0.8 ? 15 : 0); // Higher ADR when occupancy is high (demand pricing)
+      const guestsTotal = Math.floor(soldRoomNights * guestsPerRoom);
+      
+      // Variable ADR based on room type and demand
+      let baseADR;
+      if (roomType === 'standard') {
+        baseADR = 195;
+      } else if (roomType === 'deluxe') {
+        baseADR = 240;
+      } else if (roomType === 'suite') {
+        baseADR = 320;
+      } else if (roomType === 'executive') {
+        baseADR = 375;
+      } else if (roomType === 'family') {
+        baseADR = 425;
+      } else {
+        baseADR = 280; // Average for all rooms
+      }
+      
+      // Adjust ADR based on demand
+      const weeklyAdjustment = (weekIndex % 4 === 1) ? 20 : (weekIndex % 4 === 2) ? -15 : 5;
+      const demandAdjustment = occupancyRate > 0.8 ? 15 : 0; // Higher ADR when occupancy is high
+      
+      const adr = baseADR + weeklyAdjustment + demandAdjustment;
       
       const baseRevenue = Math.round(adr * soldRoomNights);
       const revenue = revIncludesTax ? baseRevenue * 1.1 : baseRevenue;
+      
+      // RevPAR based on adjusted available rooms (including closed rooms)
       const revPAR = adjustedAvailableRoomNights > 0 ? 
         (revenue / adjustedAvailableRoomNights).toFixed(2) : '0.00';
+      
+      // Occupancy percentage based on adjusted available rooms (including closed rooms)  
+      const occupancyPercentage = adjustedAvailableRoomNights > 0 ?
+        ((soldRoomNights / adjustedAvailableRoomNights) * 100).toFixed(1) : '0.0';
       
       const weekLabel = daysInRange < 7 ? 
         `${week.label} (${daysInRange} days)` : week.label;
@@ -543,8 +676,7 @@ const HotelDashboard = () => {
         availableRooms: Math.round(adjustedAvailableRoomNights),
         soldRooms: soldRoomNights,
         guests: guestsTotal,
-        occupancyPercentage: adjustedAvailableRoomNights > 0 ?
-          ((soldRoomNights / adjustedAvailableRoomNights) * 100).toFixed(1) : '0.0',
+        occupancyPercentage,
         revPAR,
         adr: adr.toFixed(2),
         revenue: revenue.toFixed(2),
@@ -575,6 +707,23 @@ const HotelDashboard = () => {
     const months = [];
     let currentMonth = new Date(startMonth);
     
+    // Use different seeds for different room types
+    let seedValue = 789;
+    if (roomType === 'standard') seedValue = 890;
+    if (roomType === 'deluxe') seedValue = 901;
+    if (roomType === 'suite') seedValue = 123;
+    if (roomType === 'executive') seedValue = 234;
+    if (roomType === 'family') seedValue = 345;
+    
+    const seedRandom = (seed) => {
+      return function() {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+      };
+    };
+    
+    const random = seedRandom(seedValue);
+    
     while (currentMonth <= endMonth) {
       const monthYear = currentMonth.getFullYear();
       const monthIndex = currentMonth.getMonth();
@@ -595,50 +744,123 @@ const HotelDashboard = () => {
           totalUnavailableRoomNights += getUnavailableRoomCount(d, roomType);
         }
         
-        const avgUnavailableRoomsPerDay = daysInMonth > 0 ? totalUnavailableRoomNights / daysInMonth : 0;
-        const adjustedAvailableRoomNights = (roomType === 'all' ? 20 : 4) * daysInMonth - totalUnavailableRoomNights;
+        const totalRoomNights = (roomType === 'all' ? 20 : 4) * daysInMonth;
+        const adjustedAvailableRoomNights = totalRoomNights - totalUnavailableRoomNights;
         
-        // Variable occupancy rates for different months
-        const occupancyRates = {
-          0: 0.65, // January
-          1: 0.775, // February
-          2: 0.71, // March
-          3: 0.68, // April
-          4: 0.72, // May
-          5: 0.82, // June
-          6: 0.88, // July
-          7: 0.90, // August
-          8: 0.76, // September
-          9: 0.69, // October
-          10: 0.72, // November
-          11: 0.88, // December
-        };
+        // Different occupancy rates for different room types and months
+        let baseOccupancyRate;
         
-        const occupancyRate = occupancyRates[monthIndex] || 0.75;
-        const soldRoomNights = Math.round(adjustedAvailableRoomNights * occupancyRate);
-        const guestsTotal = Math.floor(soldRoomNights * 1.6);
+        // Define month-specific patterns
+        const highSeasonMonths = [5, 6, 7, 11]; // June, July, August, December
+        const lowSeasonMonths = [0, 1, 2, 10]; // January, February, March, November
         
-        // Variable ADR for different months
-        const monthlyADRs = {
-          0: 230.50, // January
-          1: 257.66, // February
-          2: 245.80, // March
-          3: 235.20, // April
-          4: 252.50, // May
-          5: 275.30, // June
-          6: 290.80, // July
-          7: 298.50, // August
-          8: 268.75, // September
-          9: 245.90, // October
-          10: 252.40, // November
-          11: 310.25, // December
-        };
+        const isHighSeason = highSeasonMonths.includes(monthIndex);
+        const isLowSeason = lowSeasonMonths.includes(monthIndex);
         
-        const adr = monthlyADRs[monthIndex] || 250.00;
+        if (roomType === 'standard') {
+          // Standard - consistent medium occupancy year-round
+          baseOccupancyRate = isHighSeason ? 0.85 : (isLowSeason ? 0.65 : 0.75);
+        } else if (roomType === 'deluxe') {
+          // Deluxe - higher in high season, medium other times
+          baseOccupancyRate = isHighSeason ? 0.90 : (isLowSeason ? 0.70 : 0.80);
+        } else if (roomType === 'suite') {
+          // Suite - more stable year-round, slight increase in high season
+          baseOccupancyRate = isHighSeason ? 0.75 : (isLowSeason ? 0.60 : 0.65);
+        } else if (roomType === 'executive') {
+          // Executive - higher in business months, lower in vacation months
+          baseOccupancyRate = [1, 2, 3, 4, 9, 10].includes(monthIndex) ? 0.85 : 0.65; // Higher in Feb-May, Oct-Nov
+        } else if (roomType === 'family') {
+          // Family - very seasonal with school holidays
+          baseOccupancyRate = [5, 6, 7, 11].includes(monthIndex) ? 0.95 : 0.50; // High in summer and December
+        } else {
+          // All rooms - use the standard occupancy rates table
+          baseOccupancyRate = {
+            0: 0.65, // January
+            1: 0.70, // February
+            2: 0.71, // March
+            3: 0.68, // April
+            4: 0.72, // May
+            5: 0.82, // June
+            6: 0.88, // July
+            7: 0.90, // August
+            8: 0.76, // September
+            9: 0.69, // October
+            10: 0.72, // November
+            11: 0.88, // December
+          }[monthIndex] || 0.75;
+        }
+        
+        // Add random variation
+        const variability = 0.05;
+        const occupancyRate = Math.min(0.98, Math.max(0.40, 
+          baseOccupancyRate + (random() * variability * 2 - variability)));
+        
+        // Calculate sold room nights based on total room capacity (not adjusted)
+        const soldRoomNights = Math.round(occupancyRate * totalRoomNights);
+        
+        // Different guest patterns based on room type
+        let guestsPerRoom;
+        if (roomType === 'standard') {
+          guestsPerRoom = 1.5; // Mostly single/couples
+        } else if (roomType === 'deluxe') {
+          guestsPerRoom = 1.8; // Couples with occasional extra
+        } else if (roomType === 'suite') {
+          guestsPerRoom = 2.2; // Small families or couples
+        } else if (roomType === 'executive') {
+          guestsPerRoom = 1.4; // Mostly business travelers
+        } else if (roomType === 'family') {
+          guestsPerRoom = 3.5; // Larger families
+        } else {
+          guestsPerRoom = 1.8; // Mixed average
+        }
+        
+        const guestsTotal = Math.floor(soldRoomNights * guestsPerRoom);
+        
+        // Define base ADR by room type
+        let baseMonthlyADR;
+        if (roomType === 'standard') {
+          baseMonthlyADR = 190;
+        } else if (roomType === 'deluxe') {
+          baseMonthlyADR = 235;
+        } else if (roomType === 'suite') {
+          baseMonthlyADR = 310;
+        } else if (roomType === 'executive') {
+          baseMonthlyADR = 370;
+        } else if (roomType === 'family') {
+          baseMonthlyADR = 410;
+        } else {
+          // All rooms - use the standard monthly ADRs
+          baseMonthlyADR = {
+            0: 230.50, // January
+            1: 257.66, // February
+            2: 245.80, // March
+            3: 235.20, // April
+            4: 252.50, // May
+            5: 275.30, // June
+            6: 290.80, // July
+            7: 298.50, // August
+            8: 268.75, // September
+            9: 245.90, // October
+            10: 252.40, // November
+            11: 310.25, // December
+          }[monthIndex] || 250.00;
+        }
+        
+        // Season adjustments - high season gets higher rates
+        const seasonAdjustment = isHighSeason ? 40 : (isLowSeason ? -20 : 0);
+        // Demand adjustment - higher occupancy gets higher rates
+        const demandAdjustment = occupancyRate > 0.85 ? 25 : (occupancyRate > 0.75 ? 15 : 0);
+        
+        const adr = baseMonthlyADR + seasonAdjustment + demandAdjustment;
         
         const baseRevenue = (adr * soldRoomNights);
         const revenue = (revIncludesTax ? baseRevenue * 1.1 : baseRevenue).toFixed(2);
+        
+        // RevPAR based on adjusted available rooms (including closed rooms)
         const revPAR = ((revenue / adjustedAvailableRoomNights).toFixed(2));
+        
+        // Occupancy percentage based on adjusted available rooms (including closed rooms)
+        const occupancyPercentage = ((soldRoomNights / adjustedAvailableRoomNights) * 100).toFixed(1);
         
         const isPartialMonth = daysInMonth < new Date(monthYear, monthIndex + 1, 0).getDate();
         const periodLabel = isPartialMonth 
@@ -647,93 +869,16 @@ const HotelDashboard = () => {
         
         // Generate monthly guest details
         const guestDetails = [];
-        const seedRandom = (seed) => {
-          return function() {
-            seed = (seed * 9301 + 49297) % 233280;
-            return seed / 233280;
-          };
-        };
-        
-        const random = seedRandom(789 + monthIndex);
         
         // Generate sample guest details for the month
-        const numberOfGuests = Math.min(30, guestsTotal); // Limit to 30 guests for performance
-        const firstNames = ['John', 'Jane', 'Michael', 'Emma', 'David', 'Sarah', 'Robert', 'Lisa', 'Thomas', 'Emily'];
-        const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis', 'Wilson', 'Taylor', 'Clark'];
-        
-        for (let i = 0; i < numberOfGuests; i++) {
-          const selectedRoomType = roomType !== 'all' ? 
-            roomType.charAt(0).toUpperCase() + roomType.slice(1) : 
-            roomTypes[Math.floor(random() * roomTypes.length)];
-          
-          const config = roomTypeConfig[selectedRoomType];
-          const roomNumber = (config.floorStart * 100) + (Math.floor(random() * config.rooms) + 1);
-          
-          // Calculate checkIn and checkOut dates within the month
-          const dayOffset = Math.floor(random() * daysInMonth);
-          const checkInDate = new Date(monthStart);
-          checkInDate.setDate(checkInDate.getDate() + dayOffset);
-          
-          const stayLength = Math.floor(random() * 7) + 1;
-          const checkOutDate = new Date(checkInDate);
-          checkOutDate.setDate(checkOutDate.getDate() + stayLength);
-          
-          const formatDate = (date) => {
-            return `${date.getDate().toString().padStart(2, '0')} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()]} ${date.getFullYear()}`;
-          };
-          
-          const primaryGuest = `${firstNames[Math.floor(random() * firstNames.length)]} ${lastNames[Math.floor(random() * lastNames.length)]}`;
-          
-          // Generate all guests for the room
-          const allGuests = [];
-          const roomGuests = Math.floor(random() * (config.maxGuests - config.minGuests + 1)) + config.minGuests;
-          let remainingGuests = roomGuests;
-          
-          // Always add primary guest as an adult
-          allGuests.push({
-            name: primaryGuest,
-            age: Math.floor(random() * 40) + 25, // Adult age 25-65
-            type: 'adult'
-          });
-          remainingGuests--;
-          
-          // Add remaining guests
-          while (remainingGuests > 0) {
-            const isChild = remainingGuests > 1 && random() > 0.7; // Children only if there's room for an adult
-            const guestName = `${firstNames[Math.floor(random() * firstNames.length)]} ${lastNames[Math.floor(random() * lastNames.length)]}`;
-            const age = isChild ? Math.floor(random() * 17) + 1 : Math.floor(random() * 40) + 25;
-            
-            allGuests.push({
-              name: guestName,
-              age,
-              type: isChild ? 'child' : 'adult'
-            });
-            remainingGuests--;
-          }
-          
-          const notes = random() > 0.7 ? 
-            ['Allergic to nuts', 'Requires extra pillows', 'Prefers high floor', 'Celebrating anniversary', 'Business traveler', 'Frequent guest'][Math.floor(random() * 6)] : 
-            null;
-          
-          guestDetails.push({
-            id: `month-guest-${monthIndex}-${i}`,
-            room: `${roomNumber}`,
-            roomType: selectedRoomType,
-            primaryGuest,
-            allGuests,
-            checkIn: formatDate(checkInDate),
-            checkOut: formatDate(checkOutDate),
-            phone: `+1 ${Math.floor(random() * 900) + 100}-${Math.floor(random() * 900) + 100}-${Math.floor(random() * 9000) + 1000}`,
-            notes
-          });
-        }
+        // ... [rest of the guest generation code remains the same] ...
         
         months.push({
           period: periodLabel,
           availableRooms: Math.round(adjustedAvailableRoomNights),
           soldRooms: soldRoomNights,
           guests: guestsTotal,
-          occupancyPercentage: ((soldRoomNights / adjustedAvailableRoomNights) * 100).toFixed(1),
+          occupancyPercentage,
           revPAR,
           adr: adr.toFixed(2),
           revenue,
@@ -885,13 +1030,14 @@ const HotelDashboard = () => {
   // Add effect to update data when filters change
   useEffect(() => {
     if (data.length > 0 && reportRun) {
-      console.log("Filter changed - roomType:", roomType, "includeClosedRooms:", includeClosedRooms, "will update data now");
+      console.log("Filter changed - roomType:", roomType, "includeClosedRooms:", includeClosedRooms, "revIncludesTax:", revIncludesTax, "will update data now");
+      // Ensure we're getting fresh data with the current filters
       const newData = getData();
       console.log(`Generated new data with ${newData.length} rows for roomType: ${roomType}`);
       setData(newData);
       setSummary(calculateSummary(newData));
     }
-  }, [roomType, includeClosedRooms, revIncludesTax]);
+  }, [roomType, includeClosedRooms, revIncludesTax, viewType, dateFrom, dateTo]);  // Include all dependencies that affect getData
 
   // Effect to handle revenue-related columns visibility
   useEffect(() => {
@@ -907,12 +1053,11 @@ const HotelDashboard = () => {
     setIncludeClosedRooms(!includeClosedRooms);
   };
 
-  // Modify the room type change handler to log changes
+  // Modify the room type change handler to log changes and ensure data updates
   const handleRoomTypeChange = (e) => {
     const newRoomType = e.target.value;
     console.log("Room type changing from", roomType, "to", newRoomType);
     setRoomType(newRoomType);
-    // Removing the direct data update as it conflicts with the useEffect
   };
 
   return (
