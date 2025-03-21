@@ -24,7 +24,8 @@ const HotelDashboard = () => {
     occupancyPercentage: true,
     revPAR: false, // Hidden by default
     adr: false,    // Hidden by default
-    revenue: false // Hidden by default
+    revenue: false, // Hidden by default
+    unavailableRooms: false // Added new column, hidden by default
   });
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -187,17 +188,21 @@ const HotelDashboard = () => {
     const dateObj = typeof date === 'string' ? parseDate(date) : date;
     let unavailableCount = 0;
     
-    if (includeClosedRooms) {
-      closedRooms.forEach(room => {
-        const startDate = parseDate(room.startDate);
-        const endDate = parseDate(room.endDate);
-        
-        if (dateObj >= startDate && dateObj <= endDate) {
-          if (selectedRoomType === 'all' || selectedRoomType === room.roomType.toLowerCase()) {
-            unavailableCount++;
-          }
+    closedRooms.forEach(room => {
+      const startDate = parseDate(room.startDate);
+      const endDate = parseDate(room.endDate);
+      
+      if (dateObj >= startDate && dateObj <= endDate) {
+        if (selectedRoomType === 'all' || selectedRoomType === room.roomType.toLowerCase()) {
+          unavailableCount++;
         }
-      });
+      }
+    });
+    
+    // Log for debugging when dates match our closed room periods
+    const formattedDate = formatDate(dateObj);
+    if (unavailableCount > 0) {
+      console.log(`Date ${formattedDate} has ${unavailableCount} unavailable rooms of type ${selectedRoomType}`);
     }
     
     return unavailableCount;
@@ -772,6 +777,11 @@ const HotelDashboard = () => {
       return sum + item.guests;
     }, 0);
     
+    // Calculate total unavailable rooms
+    const totalUnavailableRooms = dataToSummarize.reduce((sum, item) => {
+      return sum + (item.unavailableRooms || 0);
+    }, 0);
+    
     const avgOccupancy = totalAvailable > 0 ? (totalOccupied / totalAvailable) * 100 : 0;
     
     const avgRevPAR = totalAvailable > 0 ? totalRevenue / totalAvailable : 0;
@@ -785,7 +795,8 @@ const HotelDashboard = () => {
       revPAR: avgRevPAR.toFixed(2),
       adr: avgADR.toFixed(2),
       revenue: totalRevenue.toFixed(2),
-      guests: totalGuests
+      guests: totalGuests,
+      unavailableRooms: totalUnavailableRooms
     };
   };
   
@@ -853,6 +864,7 @@ const HotelDashboard = () => {
   // Add effect to update data when filters change
   useEffect(() => {
     if (data.length > 0 && reportRun) {
+      console.log("Filter changed - includeClosedRooms:", includeClosedRooms);
       const newData = getData();
       setData(newData);
       setSummary(calculateSummary(newData));
@@ -866,6 +878,12 @@ const HotelDashboard = () => {
       setRevIncludesTax(false);
     }
   }, [visibleColumns.revPAR, visibleColumns.adr, visibleColumns.revenue]);
+
+  // Update the handler for the includeClosedRooms checkbox
+  const handleClosedRoomsChange = () => {
+    console.log("Toggling includeClosedRooms from", includeClosedRooms, "to", !includeClosedRooms);
+    setIncludeClosedRooms(!includeClosedRooms);
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -1123,7 +1141,7 @@ const HotelDashboard = () => {
                     <input 
                       type="checkbox" 
                       checked={includeClosedRooms}
-                      onChange={() => setIncludeClosedRooms(!includeClosedRooms)}
+                      onChange={handleClosedRoomsChange}
                       className="mr-2"
                     />
                     <span>Include closed rooms</span>
@@ -1221,6 +1239,19 @@ const HotelDashboard = () => {
                             Guests
                           </label>
                         </li>
+                        {includeClosedRooms && (
+                          <li className="px-3 py-2 border-b">
+                            <label className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={visibleColumns.unavailableRooms}
+                                onChange={() => setVisibleColumns({...visibleColumns, unavailableRooms: !visibleColumns.unavailableRooms})}
+                                className="mr-2"
+                              />
+                              Unavailable Rooms
+                            </label>
+                          </li>
+                        )}
                         <li className="px-3 py-2 border-b">
                           <label className="flex items-center">
                             <input
@@ -1335,6 +1366,11 @@ const HotelDashboard = () => {
                         Guests
                       </th>
                     )}
+                    {includeClosedRooms && visibleColumns.unavailableRooms && (
+                      <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
+                        Unavailable Rooms
+                      </th>
+                    )}
                     {visibleColumns.occupancyPercentage && (
                       <th className="text-left py-2 px-4 border-b border-gray-300 w-32">
                         Occupancy %
@@ -1392,6 +1428,13 @@ const HotelDashboard = () => {
                           )}
                         </td>
                       )}
+                      {includeClosedRooms && visibleColumns.unavailableRooms && (
+                        <td className="py-2 px-4 border-b border-gray-200">
+                          <span className={item.unavailableRooms > 0 ? 'text-red-600 font-medium' : ''}>
+                            {item.unavailableRooms || 0}
+                          </span>
+                        </td>
+                      )}
                       {visibleColumns.occupancyPercentage && (
                         <td className="py-2 px-4 border-b border-gray-200">
                           <span className={`px-2 py-1 rounded ${
@@ -1430,6 +1473,9 @@ const HotelDashboard = () => {
                     )}
                     {visibleColumns.guests && (
                       <td className="py-2 px-4 border-b border-gray-300">{summary.guests}</td>
+                    )}
+                    {includeClosedRooms && visibleColumns.unavailableRooms && (
+                      <td className="py-2 px-4 border-b border-gray-300">{summary.unavailableRooms || 0}</td>
                     )}
                     {visibleColumns.occupancyPercentage && (
                       <td className="py-2 px-4 border-b border-gray-300">
